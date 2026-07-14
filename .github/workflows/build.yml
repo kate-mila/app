@@ -1,0 +1,66 @@
+name: Build APK
+
+# اجرا می‌شه هر بار push به main، یا دستی از تب Actions گیت‌هاب
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout پروژه
+        uses: actions/checkout@v4
+
+      # ---------- مرحله‌ی ۱: بیلد هسته‌ی Xray (libv2ray.aar) با gomobile ----------
+      - name: نصب Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: نصب JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: نصب Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: نصب gomobile
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: کلون AndroidLibXrayLite
+        run: git clone --depth 1 https://github.com/2dust/AndroidLibXrayLite xray-core-src
+
+      - name: gomobile init
+        run: gomobile init
+
+      - name: بیلد libv2ray.aar
+        working-directory: xray-core-src
+        run: |
+          go mod tidy -v
+          gomobile bind -v -androidapi 21 -ldflags='-s -w -checklinkname=0' -o ../app/libs/libv2ray.aar ./
+
+      # ---------- مرحله‌ی ۲: بیلد اپ اندروید ----------
+      - name: دادن مجوز اجرا به gradlew
+        run: |
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 8.7
+          fi
+          chmod +x gradlew
+
+      - name: بیلد APK (debug)
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: آپلود APK به‌عنوان Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2ray-client-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      # برای Release امضاشده، یه Job جدا با secrets امضا (keystore) اضافه کن؛
+      # فعلاً این workflow فقط نسخه‌ی debug (بدون نیاز به کلید) رو می‌سازه.

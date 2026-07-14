@@ -1,0 +1,13 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# فایل هسته‌ی Xray به‌صورت محلی بیلد می‌شه یا در CI ساخته می‌شه، توی گیت commit نمی‌کنیم
+app/libs/*.aar
